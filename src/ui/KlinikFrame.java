@@ -1,4 +1,5 @@
 package ui;
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -11,6 +12,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -26,12 +28,13 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
+import connection.DatabaseManager;
 import model.Pasien;
 import utils.DateUtils;
 
 public class KlinikFrame {
 	private JFrame frame;
-	private ArrayList<Pasien> dataPasien;
+	private List<Pasien> dataPasien;
 	private int currentIndex;
 
 	private JTextField txtName, txtAddress, txtNIK, txtDateOfBirth;
@@ -41,6 +44,9 @@ public class KlinikFrame {
 	private JTable table;
 	private DefaultTableModel tableModel;
 	private TableRowSorter<DefaultTableModel> rowSorter;
+
+	// Database
+	final DatabaseManager dbManager;
 
 	public KlinikFrame() {
 		frame = new JFrame("Aplikasi Klinik");
@@ -218,7 +224,25 @@ public class KlinikFrame {
 		frame.add(panelTable, BorderLayout.CENTER);
 
 		frame.setVisible(true);
+
+		// Initialize DatabaseManager
+		dbManager = new DatabaseManager();
+
+		// load pasien from database
+		dataPasien = dbManager.loadPasienData();
+		
+		// show data to the UI
+		refreshTable();
 	}
+	
+	private void refreshTable() {
+        tableModel.setRowCount(0);
+        //Insert row
+        for (Pasien pasien : dataPasien) {
+			tableModel.addRow(new String[] { Integer.toString(tableModel.getRowCount() + 1), pasien.getName(), pasien.getNik(),
+					DateUtils.formatDate(pasien.getDateOfBirth()), pasien.getAddress() });
+        }
+    }
 
 	private void tambahDataPasien() {
 		String nama = txtName.getText();
@@ -227,12 +251,21 @@ public class KlinikFrame {
 		Date tanggalLahir = DateUtils.parseDate(txtDateOfBirth.getText());
 
 		if (isNIKUnique(nik)) {
+			Pasien pasien = new Pasien(nama, alamat, nik, tanggalLahir);
+
+			// Add pasien
+			dbManager.createDataPasien(pasien);
+
+			//Insert row
 			tableModel.addRow(new String[] { Integer.toString(tableModel.getRowCount() + 1), nama, nik,
 					DateUtils.formatDate(tanggalLahir), alamat });
-
-			dataPasien.add(new Pasien(nama, alamat, nik, tanggalLahir));
+			
+			dataPasien.add(pasien);
 
 			clearInputFields();
+			JOptionPane.showMessageDialog(frame,
+					"Pasien " + pasien.getName() + "(" + pasien.getNik() + ") berhasil ditambahkan.");
+
 		} else {
 			JOptionPane.showMessageDialog(frame, "NIK sudah ada dalam data pasien.");
 		}
@@ -251,10 +284,17 @@ public class KlinikFrame {
 			pasien.setNik(nik);
 			pasien.setDateOfBirth(dateOfBirth);
 
+			// Update Pasien
+			dbManager.updateDataPasien(pasien);
+
+			// Set value
 			tableModel.setValueAt(name, currentIndex, 1);
 			tableModel.setValueAt(nik, currentIndex, 2);
 			tableModel.setValueAt(DateUtils.formatDate(dateOfBirth), currentIndex, 3);
 			tableModel.setValueAt(address, currentIndex, 4);
+
+			JOptionPane.showMessageDialog(frame,
+					"Pasien " + pasien.getName() + "(" + pasien.getNik() + ") berhasil diupdate.");
 
 			updateUI();
 		} else {
@@ -264,8 +304,12 @@ public class KlinikFrame {
 
 	private void hapusDataPasien() {
 		if (currentIndex >= 0 && currentIndex < dataPasien.size()) {
+			Pasien pasien = dataPasien.get(currentIndex);
 			dataPasien.remove(currentIndex);
 			tableModel.removeRow(currentIndex);
+
+			// Delete pasien
+			dbManager.deleteDataPasien(pasien.getId());
 
 			if (currentIndex >= dataPasien.size()) {
 				currentIndex = dataPasien.size() - 1;
@@ -273,11 +317,14 @@ public class KlinikFrame {
 
 			updateUI();
 			clearInputFields();
+			
+			JOptionPane.showMessageDialog(frame,
+					"Pasien " + pasien.getName() + "(" + pasien.getNik() + ") berhasil dihapus.");
 		} else {
 			JOptionPane.showMessageDialog(frame, "Tidak ada data pasien yang dipilih.");
 		}
 	}
-	
+
 	private void updateUI() {
 		if (currentIndex >= 0 && currentIndex < dataPasien.size()) {
 			Pasien pasien = dataPasien.get(currentIndex);
@@ -294,7 +341,7 @@ public class KlinikFrame {
 			txtDateOfBirth.setText("");
 		}
 	}
-	
+
 	private boolean isNIKUnique(String nik) {
 		for (Pasien pasien : dataPasien) {
 			if (pasien.getNik().equals(nik)) {

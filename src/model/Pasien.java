@@ -3,17 +3,29 @@ package model;
 import java.util.Date;
 
 public class Pasien {
+	int id;
     String name;
     String address;
     String nik;
     Date dateOfBirth;
-
    
+	public Pasien(int id, String name, String address, String nik, Date dateOfBirth) {
+		this.id = id;
+		this.name = name;
+        this.address = address;
+        this.nik = nik;
+        this.dateOfBirth = dateOfBirth;
+	}
+	
 	public Pasien(String name, String address, String nik, Date dateOfBirth) {
 		this.name = name;
         this.address = address;
         this.nik = nik;
         this.dateOfBirth = dateOfBirth;
+	}
+	
+	public int getId() {
+		return id;
 	}
 
 	public String getName() {
